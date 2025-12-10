@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La Posada de Federico - Live Order Board</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Custom Fonts and Variables */
+        :root {
+            --color-wood-dark: #3e2723;
+            --color-wood-medium: #5d4037;
+            --color-red-wine: #6d0a0a;
+            --color-gold: #ffc107;
+            --color-chalk: #f0f0f0;
+            --font-heading: 'Playfair Display', serif;
+            --font-body: 'Roboto Slab', serif;
+        }
+
+        /* Base Styles */
+        body {
+            font-family: var(--font-body);
+            margin: 0;
+            padding: 0;
+            background-color: var(--color-wood-dark);
+            background-image: url('https://www.transparenttextures.com/patterns/wood-texture.png');
+            color: var(--color-chalk);
+        }
+
+        header {
+            background-color: var(--color-red-wine);
+            padding: 25px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+            border-bottom: 5px solid var(--color-gold);
+        }
+
+        header h1 {
+            font-family: var(--font-heading);
+            margin: 0;
+            font-size: 2.5em;
+            color: var(--color-gold);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        #add-order-btn {
+            background-color: var(--color-gold);
+            color: var(--color-wood-dark);
+            border: 2px solid var(--color-wood-dark);
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        #add-order-btn:hover {
+            background-color: #ffda6a;
+            transform: translateY(-2px);
+        }
+
+        /* Board Layout */
+        .board {
+            display: flex;
+            padding: 30px 20px;
+            gap: 30px; 
+            overflow-x: auto; 
+        }
+
+        .column-container {
+            /* Flex for the main columns */
+            flex-shrink: 0;
+            flex-grow: 1;
+            min-width: 300px;
+        }
+        
+        .collapsible-container {
+            /* For Cancelled and Paid sections */
+            flex-shrink: 0;
+            min-width: 250px;
+            max-width: 300px;
+        }
+
+        .column {
+            background-color: var(--color-wood-medium);
+            border-radius: 10px;
+            padding: 20px 15px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .column h2 {
+            text-align: center;
+            color: var(--color-gold);
+            font-family: var(--font-heading);
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 3px solid var(--color-red-wine);
+            font-size: 1.6em;
+            letter-spacing: 1px;
+        }
+
+        /* Collapsible Header Styling */
+        .collapsible-header {
+            background-color: var(--color-red-wine);
+            padding: 15px;
+            border-radius: 10px 10px 0 0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .collapsible-header h2 {
+            margin: 0;
+            padding: 0;
+            border: none;
+            font-size: 1.2em;
+            color: var(--color-gold);
+            text-align: left;
+        }
+        
+        .toggle-icon {
+            font-size: 1.5em;
+            color: var(--color-gold);
+            transition: transform 0.3s;
+        }
+
+        .collapsible-container.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            border-radius: 0 0 10px 10px;
+            overflow: hidden;
+            max-height: 2000px; /* Large value to simulate "auto" */
+            transition: max-height 0.5s ease-in-out;
+            padding: 0 15px; /* Adjust padding to match column padding */
+            background-color: var(--color-wood-medium);
+        }
+
+        .collapsible-container.collapsed .collapsible-content {
+            max-height: 0;
+            padding: 0;
+        }
+        
+        /* Specific column color for Paid/Cancelled */
+        #Paid-container, #Cancelled-container {
+            padding: 15px 0;
+        }
+
+
+        /* Order Card Styles */
+        .order-card {
+            background-color: rgba(255, 255, 255, 0.9); 
+            color: #333;
+            border-left: 6px solid;
+            padding: 18px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s;
+        }
+
+        /* Status-specific card colors */
+        .order-card[data-status="New"] { border-left-color: #0087c0; } 
+        .order-card[data-status="Preparing"] { border-left-color: #ff9800; } 
+        .order-card[data-status="Ready"] { border-left-color: #4caf50; } 
+        .order-card[data-status="Collected"] { border-left-color: var(--color-wood-dark); opacity: 0.8; }
+        .order-card[data-status="To Be Paid"] { border-left-color: var(--color-wood-dark); }
+        .order-card[data-status="Paid Orders"] { border-left-color: #00bcd4; background-color: #f0ffff; opacity: 0.9; }
+        
+        /* Cancelled Order Card Style */
+        .order-card[data-status="Cancelled"] { 
+            border-left-color: #d32f2f; /* Deep Red */
+            background-color: #fce4e4; /* Light pink background */
+            color: #d32f2f;
+            opacity: 0.9;
+        }
+        .order-card[data-status="Cancelled"] h3 { color: #d32f2f; }
+        .order-card[data-status="Cancelled"] .card-meta, 
+        .order-card[data-status="Cancelled"] .card-summary { color: #d32f2f; }
+        .order-card[data-status="Cancelled"] .card-notes {
+            color: #900;
+            font-style: normal;
+            font-weight: 400;
+            border-top: 1px dashed #d32f2f;
+            padding-top: 5px;
+            margin-top: 5px;
+        }
+
+        /* Status Button Styles */
+        .status-controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+            flex-wrap: wrap; 
+        }
+
+        .status-controls button {
+            flex: 1;
+            padding: 8px 10px;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: background-color 0.2s;
+        }
+
+        .status-controls .next-btn { background-color: var(--color-red-wine); }
+        .status-controls .next-btn:hover { background-color: #941717; }
+        
+        .status-controls .paid-btn { background-color: #00bcd4; }
+        .status-controls .paid-btn:hover { background-color: #008ba3; }
+        
+        /* Cancel Button Style */
+        .status-controls .cancel-btn {
+            background-color: #d32f2f; /* Deep Red */
+            flex-grow: 0.5; 
+        }
+        .status-controls .cancel-btn:hover { background-color: #a00; }
+        
+        .status-controls .delete-btn { background-color: #555; }
+        .status-controls .delete-btn:hover { background-color: #333; }
+        
+        /* Modal Styles (Unchanged) */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 100; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            background-color: rgba(0,0,0,0.6); 
+            overflow-y: auto; 
+            padding: 50px 0;
+        }
+        
+        #cancel-modal .modal-content {
+            max-width: 500px;
+        }
+        
+        .modal-content {
+            background-color: var(--color-wood-dark); 
+            color: var(--color-chalk); 
+            margin: 5% auto; 
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%; 
+            max-width: 800px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 5px double var(--color-gold);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-container">
+            <h1>🥩 La Posada de Federico 🍷</h1>
+        </div>
+        <button id="add-order-btn">➕ New Order</button>
+    </header>
+
+    <main class="board">
+        <div class="column-container" data-status="New">
+            <div class="column">
+                <h2>1. New Orders</h2>
+                <div class="card-container" id="New-container"></div>
+            </div>
+        </div>
+        <div class="column-container" data-status="Preparing">
+            <div class="column">
+                <h2>2. Preparing</h2>
+                <div class="card-container" id="Preparing-container"></div>
+            </div>
+        </div>
+        <div class="column-container" data-status="Ready">
+            <div class="column">
+                <h2>3. Ready for Collection</h2>
+                <div class="card-container" id="Ready-container"></div>
+            </div>
+        </div>
+        <div class="column-container" data-status="To Be Paid">
+            <div class="column">
+                <h2>4. To Be Paid</h2>
+                <div class="card-container" id="To Be Paid-container"></div>
+            </div>
+        </div>
+        
+        <div class="collapsible-container collapsed" id="paid-orders-section">
+            <div class="collapsible-header" data-target="paid-content">
+                <h2>5. Paid Orders (Audit)</h2>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div class="collapsible-content" id="paid-content">
+                <div class="card-container" id="Paid Orders-container"></div>
+            </div>
+        </div>
+        
+        <div class="collapsible-container collapsed" id="cancelled-orders-section">
+            <div class="collapsible-header" data-target="cancelled-content">
+                <h2>6. Cancelled (Audit)</h2>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div class="collapsible-content" id="cancelled-content">
+                <div class="card-container" id="Cancelled-container"></div>
+            </div>
+        </div>
+    </main>
+
+    <div id="order-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Enter New Order</h2>
+            <form id="order-form">
+                <label for="customer-name">Customer Name:</label>
+                <input type="text" id="customer-name" name="customer-name" required>
+                
+                <div class="order-type-section">
+                    <label>Order Type:</label>
+                    <div class="order-type-options">
+                        <label>
+                            <input type="radio" name="orderType" value="Eat Here" id="type-eat-here" required> Eat Here
+                        </label>
+                        <label>
+                            <input type="radio" name="orderType" value="Take Away"> Take Away
+                        </label>
+                        <label>
+                            <input type="radio" name="orderType" value="Delivery"> Delivery
+                        </label>
+                    </div>
+                    
+                    <div id="table-number-slot">
+                        <label for="table-number">Table No.:</label>
+                        <input type="number" id="table-number" name="table-number" min="1" placeholder="e.g., 5">
+                    </div>
+                </div>
+                
+                <label>Menu Items (Select One or More):</label>
+                <div class="menu-sections" id="menu-sections-container">
+                    
+                    <div class="menu-category" data-category="Starter">
+                        <h4>Starter</h4>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Starter" value="Empanadas (Beef)"> Empanadas (Beef)</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Starter" value="Provoleta"> Provoleta</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Starter" value="Mollejas (Sweetbreads)"> Mollejas (Sweetbreads)</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Starter" value="Chorizo Criollo"> Chorizo Criollo</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Starter" value="Mixed Salad"> Mixed Salad</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Starter" value="Gamba Pil Pil"> Gamba Pil Pil</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Starter" value="Vitel Toné"> Vitel Toné</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Starter" value="Soup of the Day"> Soup of the Day</label></div>
+                    </div>
+
+                    <div class="menu-category" data-category="Main">
+                        <h4>Main Course</h4>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Main" data-item-id="bife-c" value="Bife de Chorizo (Sirloin)"> Bife de Chorizo (Sirloin)</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Main" data-item-id="ojo-b" value="Ojo de Bife (Ribeye)"> Ojo de Bife (Ribeye)</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Main" data-item-id="lomo" value="Lomo (Fillet)"> Lomo (Fillet)</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Main" data-item-id="asado" value="Asado de Tira (Short Ribs)"> Asado de Tira (Short Ribs)</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Main" data-item-id="milanesa" value="Milanese (Beef)"> Milanese (Beef)</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Main" data-item-id="chicken" value="Grilled Chicken"> Grilled Chicken</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Main" data-item-id="ravioli" value="Ravioli (Spinach)"> Ravioli (Spinach)</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Main" data-item-id="veg-s" value="Vegetarian Skewers"> Vegetarian Skewers</label></div>
+                    </div>
+
+                    <div class="menu-category" data-category="Sides">
+                        <h4>Sides</h4>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Sides" value="Chips / French Fries"> Chips / French Fries</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Sides" value="Mashed Potato"> Mashed Potato</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Sides" value="Grilled Vegetables"> Grilled Vegetables</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Sides" value="House Salad"> House Salad</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Sides" value="Creamy Spinach"> Creamy Spinach</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Sides" value="Rice Pilaf"> Rice Pilaf</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Sides" value="Chimichurri Sauce"> Chimichurri Sauce</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Sides" value="Pepper Sauce"> Pepper Sauce</label></div>
+                    </div>
+                    
+                    <div class="menu-category" data-category="Desserts">
+                        <h4>Desserts</h4>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Desserts" value="Flan con Dulce de Leche"> Flan con Dulce de Leche</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Desserts" value="Panqueques"> Panqueques</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Desserts" value="Tiramisu"> Tiramisu</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Desserts" value="Chocolate Brownie"> Chocolate Brownie</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Desserts" value="Affogato"> Affogato</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Desserts" value="Ice Cream Selection"> Ice Cream Selection</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Desserts" value="Cheese Board"> Cheese Board</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Desserts" value="Alfajores"> Alfajores</label></div>
+                    </div>
+                    
+                    <div class="menu-category" data-category="Wines">
+                        <h4>Wines</h4>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Wines" value="Malbec Reserve (Bottle)"> Malbec Reserve (Bottle)</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Wines" value="Cabernet Sauvignon (Glass)"> Cabernet Sauvignon (Glass)</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Wines" value="Torrontés (Bottle)"> Torrontés (Bottle)</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Wines" value="Chardonnay (Glass)"> Chardonnay (Glass)</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Wines" value="Pinot Noir (Bottle)"> Pinot Noir (Bottle)</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Wines" value="Merlot (Glass)"> Merlot (Glass)</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Wines" value="Prosecco (Bottle)"> Prosecco (Bottle)</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Wines" value="House White (Carafe)"> House White (Carafe)</label></div>
+                    </div>
+                    
+                    <div class="menu-category" data-category="Sodas">
+                        <h4>Sodas</h4>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Sodas" value="Coke"> Coke</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Sodas" value="Diet Coke"> Diet Coke</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Sodas" value="Fanta Orange"> Fanta Orange</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Sodas" value="Sprite"> Sprite</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Sodas" value="Still Water"> Still Water</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Sodas" value="Sparkling Water"> Sparkling Water</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Sodas" value="Club Orange"> Club Orange</label></div>
+                        <div class="menu-item-group"><label><input type="checkbox" name="Sodas" value="Tonic Water"> Tonic Water</label></div>
+                    </div>
+                </div>
+                <label for="notes">Kitchen Notes (General):</label>
+                <input type="text" id="notes" name="notes">
+
+                <button type="submit">Place Order</button>
+            </form>
+        </div>
+    </div>
+    
+    <div id="cancel-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn cancel-close-btn">&times;</span>
+            <h2>❌ Cancel Order: <span id="cancel-customer-name"></span></h2>
+            <form id="cancel-form">
+                <input type="hidden" id="cancel-order-id">
+                
+                <label for="cancellation-reason">Reason for Cancellation (Mandatory):</label>
+                <textarea id="cancellation-reason" name="cancellation-reason" required></textarea>
+                
+                <label for="responsible-person">Responsible Person (Mandatory):</label>
+                <input type="text" id="responsible-person" name="responsible-person" required placeholder="Name/Role of person authorizing cancellation">
+
+                <button type="submit">Confirm Cancellation</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <script>
+        // --- FIREBASE CONFIGURATION ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyC72jKVxS1PI4x5y8eU5C0gTrvyVq9miJ4",
+            authDomain: "live-order-board-eea44.firebaseapp.com",
+            projectId: "live-order-board-eea44",
+            storageBucket: "live-order-board-eea44.firebasestorage.app",
+            messagingSenderId: "243526804288",
+            appId: "1:243526804288:web:9014ed81b79cb66d81d0a5"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const ordersRef = database.ref('orders');
+        // ------------------------------
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // DOM Element References
+            const modal = document.getElementById('order-modal');
+            const addOrderBtn = document.getElementById('add-order-btn');
+            const closeBtn = document.querySelector('.close-btn');
+            const orderForm = document.getElementById('order-form');
+            const tableNumberSlot = document.getElementById('table-number-slot');
+            const tableNumberInput = document.getElementById('table-number');
+            const mainCourseCategory = document.querySelector('.menu-category[data-category="Main"]');
+            
+            // Cancellation Modal elements
+            const cancelModal = document.getElementById('cancel-modal');
+            const cancelForm = document.getElementById('cancel-form');
+            const cancelCloseBtn = document.querySelector('.cancel-close-btn');
+
+            // Statuses Array (INCLUDING NEW STEPS)
+            const statuses = ['New', 'Preparing', 'Ready', 'To Be Paid', 'Paid Orders', 'Cancelled'];
+
+            // Doneness options template (as HTML string)
+            const donenessOptionsHtml = `
+                <div class="doneness-inline">
+                    <label>Cook:</label>
+                    <label><input type="radio" name="doneness" value="Rare"> Rare</label>
+                    <label><input type="radio" name="doneness" value="Medium Rare" checked> Med Rare</label>
+                    <label><input type="radio" name="doneness" value="Medium"> Medium</label>
+                    <label><input type="radio" name="doneness" value="Medium Well"> Med Well</label>
+                    <label><input type="radio" name="doneness" value="Well-Done"> Well Done</label>
+                </div>
+            `;
+            
+            // --- Initialization: Insert Doneness Prompts into Main Course Items ---
+            if (mainCourseCategory) {
+                mainCourseCategory.querySelectorAll('.menu-item-group').forEach(group => {
+                    const itemCheckbox = group.querySelector('input[type="checkbox"]');
+                    const itemId = itemCheckbox.getAttribute('data-item-id');
+                    
+                    if (itemId) {
+                        const itemDonenessHtml = donenessOptionsHtml.replace(/name="doneness"/g, `name="doneness-${itemId}"`);
+                        group.insertAdjacentHTML('beforeend', itemDonenessHtml);
+
+                        itemCheckbox.addEventListener('change', function() {
+                            group.classList.toggle('checked', this.checked);
+                            if (!this.checked) {
+                                group.querySelectorAll(`input[type="radio"][name="doneness-${itemId}"]`).forEach(radio => radio.checked = false);
+                            }
+                        });
+                    }
+                });
+            }
+            
+            // --- NEW: Collapsible Column Logic ---
+            document.querySelectorAll('.collapsible-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    const container = header.closest('.collapsible-container');
+                    container.classList.toggle('collapsed');
+                });
+            });
+
+
+            // --- Order Modal Logic (Unchanged) ---
+            addOrderBtn.addEventListener('click', () => {
+                modal.style.display = 'block';
+            });
+
+            closeBtn.addEventListener('click', () => {
+                modal.style.display = 'none';
+                orderForm.reset();
+                tableNumberSlot.style.display = 'none'; 
+                mainCourseCategory.querySelectorAll('.menu-item-group').forEach(group => {
+                    group.classList.remove('checked');
+                });
+            });
+
+            window.addEventListener('click', (event) => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                    orderForm.reset();
+                    tableNumberSlot.style.display = 'none'; 
+                    mainCourseCategory.querySelectorAll('.menu-item-group').forEach(group => {
+                        group.classList.remove('checked');
+                    });
+                }
+            });
+            
+            // --- Cancellation Modal Logic (Unchanged) ---
+            cancelCloseBtn.addEventListener('click', () => {
+                cancelModal.style.display = 'none';
+                cancelForm.reset();
+            });
+
+            window.addEventListener('click', (event) => {
+                if (event.target === cancelModal) {
+                    cancelModal.style.display = 'none';
+                    cancelForm.reset();
+                }
+            });
+
+            // Handle submission of the cancellation form
+            cancelForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                
+                const orderId = document.getElementById('cancel-order-id').value;
+                const reason = document.getElementById('cancellation-reason').value.trim();
+                const person = document.getElementById('responsible-person').value.trim();
+
+                if (reason && person) {
+                    updateOrderStatus(orderId, 'Cancelled', { reason: reason, person: person });
+                    initBoard(); 
+                    cancelModal.style.display = 'none';
+                    cancelForm.reset();
+                } else {
+                    alert('Both the reason and the responsible person are mandatory for cancellation.');
+                }
+            });
+            
+            // --- Conditional Table Number Display (Unchanged) ---
+            orderForm.addEventListener('change', (event) => {
+                if (event.target.name === 'orderType') {
+                    if (event.target.value === 'Eat Here') {
+                        tableNumberSlot.style.display = 'block';
+                        tableNumberInput.setAttribute('required', 'required');
+                    } else {
+                        tableNumberSlot.style.display = 'none';
+                        tableNumberInput.removeAttribute('required');
+                        tableNumberInput.value = ''; 
+                    }
+                }
+            });
+
+
+            // --- Order Submission and Creation (Unchanged) ---
+
+            orderForm.addEventListener('submit', (event) => {
+                event.preventDefault(); 
+
+                const customerName = document.getElementById('customer-name').value.trim();
+                const notes = document.getElementById('notes').value.trim();
+
+                const orderTypeElement = orderForm.querySelector('input[name="orderType"]:checked');
+                const orderType = orderTypeElement ? orderTypeElement.value : 'N/A';
+                
+                const tableNumber = orderType === 'Eat Here' ? tableNumberInput.value.trim() : '';
+
+                const selectedItems = collectSelectedItems();
+                const itemSummaryText = formatItemsForStorage(selectedItems);
+
+
+                if (customerName && itemSummaryText.length > 0) {
+                    const newOrder = {
+                        id: Date.now(), 
+                        customerName: customerName,
+                        orderType: orderType,
+                        tableNumber: tableNumber,
+                        itemSummary: itemSummaryText, 
+                        structuredItems: selectedItems,
+                        notes: notes,
+                        timestamp: new Date().toLocaleTimeString('en-IE', { hour: '2-digit', minute: '2-digit', hour12: true }),
+                        status: 'New'
+                    };
+                    
+                    addOrderToBoard(newOrder);
+                    saveOrder(newOrder);
+
+                    modal.style.display = 'none';
+                    orderForm.reset();
+                    tableNumberSlot.style.display = 'none'; 
+                    mainCourseCategory.querySelectorAll('.menu-item-group').forEach(group => {
+                        group.classList.remove('checked');
+                    });
+                } else if (itemSummaryText.length === 0) {
+                    alert('Please select at least one menu item.');
+                }
+            });
+            
+            /** Data Collection & Formatting (Unchanged) **/
+            function collectSelectedItems() {
+                const selected = {};
+                const checkboxes = orderForm.querySelectorAll('input[type="checkbox"]:checked');
+                
+                checkboxes.forEach(checkbox => {
+                    const category = checkbox.name;
+                    const itemName = checkbox.value;
+                    
+                    if (!selected[category]) {
+                        selected[category] = [];
+                    }
+                    
+                    let itemDetails = { name: itemName };
+
+                    const itemId = checkbox.getAttribute('data-item-id');
+                    if (itemId) {
+                        const donenessRadio = orderForm.querySelector(`input[name="doneness-${itemId}"]:checked`);
+                        itemDetails.doneness = donenessRadio ? donenessRadio.value : 'N/A (No Temp)';
+                    }
+                    
+                    selected[category].push(itemDetails);
+                });
+                return selected;
+            }
+            
+            function formatItemsForDisplay(items) {
+                let html = '';
+                for (const category in items) {
+                    if (items[category].length > 0) {
+                        html += `<p>${category}:</p>`;
+                        items[category].forEach(item => {
+                            let itemLine = `<span class="main-item">- ${item.name}</span>`;
+                            if (item.doneness) {
+                                itemLine += `<span class="item-doneness">${item.doneness.toUpperCase()}</span>`;
+                            }
+                            html += itemLine;
+                        });
+                    }
+                }
+                return html;
+            }
+
+             function formatItemsForStorage(items) {
+                let text = [];
+                for (const category in items) {
+                    if (items[category].length > 0) {
+                        const itemNames = items[category].map(item => {
+                            let name = item.name;
+                            if (item.doneness && item.doneness !== 'N/A (No Temp)') {
+                                name += ` (${item.doneness})`;
+                            }
+                            return name;
+                        });
+                        text.push(`${category}: ${itemNames.join(', ')}`);
+                    }
+                }
+                return text.join(' | ');
+            }
+
+
+            // --- Order Board Rendering (Updated for new statuses and styling) ---
+
+            /**
+             * Creates and appends an order card to the correct column.
+             */
+            function addOrderToBoard(order) {
+                const existingCard = document.querySelector(`.order-card[data-id="${order.id}"]`);
+                if (existingCard) {
+                    existingCard.remove();
+                }
+
+                const itemsToDisplay = order.structuredItems && Object.keys(order.structuredItems).length > 0
+                                       ? formatItemsForDisplay(order.structuredItems) 
+                                       : `<p>${order.itemSummary}</p>`;
+                
+                let orderMeta = `<div class="card-meta"><strong>Type:</strong> ${order.orderType}`;
+                if (order.orderType === 'Eat Here' && order.tableNumber) {
+                     orderMeta += `<span class="table-number">Table ${order.tableNumber}</span>`;
+                }
+                orderMeta += `</div>`;
+                
+                let notesHtml = order.notes ? `<p class="card-notes">**Kitchen Note:** ${order.notes}</p>` : '';
+                
+                // Cancellation details override
+                if (order.status === 'Cancelled' && order.cancellation) {
+                    notesHtml = `
+                        <p class="card-notes">
+                            **CANCELLED REASON:** ${order.cancellation.reason}<br>
+                            **RESPONSIBLE:** ${order.cancellation.person}
+                        </p>
+                    `;
+                }
+
+
+                const container = document.getElementById(`${order.status}-container`); 
+                if (!container) return; 
+
+                const card = document.createElement('div');
+                card.className = 'order-card';
+                card.setAttribute('data-id', order.id);
+                card.setAttribute('data-status', order.status);
+
+                card.innerHTML = `
+                    <h3>${order.customerName} <span class="card-timestamp">${order.timestamp}</span></h3>
+                    ${orderMeta}
+                    <div class="card-summary">
+                        ${itemsToDisplay}
+                    </div>
+                    ${notesHtml}
+                    <div class="status-controls">
+                        ${createStatusButtons(order.status, order.id)}
+                    </div>
+                `;
+
+                container.prepend(card); 
+            }
+
+            /**
+             * Generates the status control buttons for an order card.
+             */
+            function createStatusButtons(currentStatus, orderId) {
+                let buttonsHtml = '';
+                const currentIndex = statuses.indexOf(currentStatus);
+
+                // Movement Buttons for New, Preparing, Ready
+                if (currentStatus === 'New' || currentStatus === 'Preparing') { 
+                    const nextStatus = statuses[currentIndex + 1];
+                    buttonsHtml += `<button class="next-btn" data-action="next" data-id="${orderId}" data-next-status="${nextStatus}">Move to ${nextStatus}</button>`;
+                } else if (currentStatus === 'Ready') {
+                    // Ready moves to To Be Paid
+                    buttonsHtml += `<button class="next-btn" data-action="next" data-id="${orderId}" data-next-status="To Be Paid">Hand Off / To Be Paid</button>`;
+                } else if (currentStatus === 'To Be Paid') {
+                    // To Be Paid moves to Paid Orders
+                    buttonsHtml += `<button class="paid-btn" data-action="next" data-id="${orderId}" data-next-status="Paid Orders">CONFIRM PAID</button>`;
+                }
+
+                // Cancel Button (for New, Preparing, Ready, To Be Paid)
+                if (currentStatus !== 'Paid Orders' && currentStatus !== 'Cancelled') {
+                    buttonsHtml += `<button class="cancel-btn" data-action="prompt-cancel" data-id="${orderId}">Cancel</button>`;
+                }
+                
+                // Delete Button (only visible for Paid Orders and Cancelled audit)
+                if (currentStatus === 'Paid Orders' || currentStatus === 'Cancelled') {
+                    buttonsHtml += `<button class="delete-btn" data-action="delete" data-id="${orderId}">Delete Order</button>`;
+                }
+                
+                return buttonsHtml;
+            }
+
+            // --- State Management (localStorage) ---
+            
+            function saveOrder(newOrder) {
+                const orders = getOrders();
+                orders.push(newOrder);
+                localStorage.setItem('orders', JSON.stringify(orders));
+            }
+
+            function getOrders() {
+                const ordersJSON = localStorage.getItem('orders');
+                const orders = ordersJSON ? JSON.parse(ordersJSON) : [];
+                
+                // Upgrade/sanitize orders
+                orders.forEach(order => {
+                    if (order.orderType === undefined) order.orderType = 'N/A';
+                    if (order.tableNumber === undefined) order.tableNumber = '';
+                    if (order.structuredItems === undefined) order.structuredItems = {}; 
+                    if (order.cancellation === undefined) order.cancellation = null; 
+                    
+                    // FIX: If old status 'Collected' exists, map it to 'To Be Paid'
+                    if (order.status === 'Collected') {
+                        order.status = 'To Be Paid';
+                    }
+                    if (!statuses.includes(order.status)) { order.status = 'New'; }
+                });
+
+                return orders;
+            }
+
+            function updateOrderStatus(id, newStatus, cancellationDetails = null) {
+                const orders = getOrders();
+                const orderIndex = orders.findIndex(order => order.id == id);
+                if (orderIndex !== -1) {
+                    orders[orderIndex].status = newStatus;
+                    if (cancellationDetails) {
+                         orders[orderIndex].cancellation = cancellationDetails;
+                    }
+                    localStorage.setItem('orders', JSON.stringify(orders));
+                }
+            }
+
+            function deleteOrder(id) {
+                let orders = getOrders();
+                orders = orders.filter(order => order.id != id);
+                localStorage.setItem('orders', JSON.stringify(orders));
+            }
+
+            // --- Board Interactivity ---
+
+            document.querySelector('.board').addEventListener('click', (event) => {
+                const target = event.target;
+                const action = target.getAttribute('data-action');
+                const orderId = target.getAttribute('data-id');
+
+                if (!action || !orderId) return; 
+
+                const card = document.querySelector(`.order-card[data-id="${orderId}"]`);
+                if (!card) return;
+                
+                // Move to Next Status
+                if (action === 'next') {
+                    const newStatus = target.getAttribute('data-next-status');
+                    
+                    updateOrderStatus(orderId, newStatus);
+                    
+                    card.remove();
+                    
+                    const orderData = getOrders().find(o => o.id == orderId);
+                    if (orderData) {
+                        addOrderToBoard(orderData);
+                    }
+                }
+                
+                // Prompt Cancellation Modal
+                if (action === 'prompt-cancel') {
+                    const orderData = getOrders().find(o => o.id == orderId);
+                    if (orderData) {
+                        document.getElementById('cancel-order-id').value = orderId;
+                        document.getElementById('cancel-customer-name').textContent = orderData.customerName;
+                        cancelModal.style.display = 'block';
+                    }
+                }
+                
+                // Delete Order (for audit cleanup)
+                if (action === 'delete') {
+                    const customerName = card.querySelector('h3').firstChild.textContent.trim();
+                    if (confirm(`Are you sure you want to PERMANENTLY DELETE the order for ${customerName}? This action cannot be undone.`)) {
+                        deleteOrder(orderId);
+                        card.remove();
+                    }
+                }
+            });
+
+            // --- Initialization ---
+
+            function initBoard() {
+                // Clear all containers based on the status list
+                statuses.forEach(status => {
+                    const container = document.getElementById(`${status}-container`);
+                    if(container) container.innerHTML = '';
+                });
+
+                const orders = getOrders();
+                orders.forEach(order => {
+                    addOrderToBoard(order);
+                });
+            }
+
+            initBoard();
+        });
+    </script>
+</body>
+</html>
